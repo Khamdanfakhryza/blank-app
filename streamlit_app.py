@@ -10,38 +10,70 @@ st.markdown("""
 **Aplikasi ini mensimulasikan optimasi jaringan distribusi listrik dengan mengubah parameter seperti impedansi saluran, beban, dan tegangan awal.**
 """)
 
-# --- Sidebar untuk Input Parameter ---
-st.sidebar.title("Parameter Optimasi")
-st.sidebar.markdown("""
-### **1. Matriks Admitansi (Ybus)**
-Matriks admitansi menggambarkan hubungan antara tegangan dan arus pada setiap bus dalam jaringan.
-""")
+# --- Data untuk Masing-Masing Daerah ---
+data_daerah = {
+    "ULP Semarang Timur": {
+        "Ybus": np.array([[complex(10, -5), complex(-5, 2)],
+                         [complex(-5, 2), complex(8, -3)]]),
+        "P_load": [0, 200],  # kW
+        "Q_load": [0, 100],  # kVAR
+        "V_initial": [complex(1.02, 0), complex(0.97, 0.03)],
+        "losses": {
+            "initial": 229576732,  # kWh
+            "current": 21343577    # kWh
+        }
+    },
+    "ULP Weleri": {
+        "Ybus": np.array([[complex(12, -6), complex(-6, 3)],
+                         [complex(-6, 3), complex(10, -4)]]),
+        "P_load": [0, 250],  # kW
+        "Q_load": [0, 120],  # kVAR
+        "V_initial": [complex(1, 0), complex(0.98, 0.02)],
+        "losses": {
+            "initial": 73083664,  # kWh
+            "current": 5193168    # kWh
+        }
+    },
+    "ULP Boja": {
+        "Ybus": np.array([[complex(12, -8), complex(-6, 4)],
+                         [complex(-6, 4), complex(10, -6)]]),
+        "P_load": [0, 180],  # kW
+        "Q_load": [0, 90],   # kVAR
+        "V_initial": [complex(1.02, 0), complex(0.98, 0.04)],
+        "losses": {
+            "initial": 1088249105,  # kWh
+            "current": 66970914     # kWh
+        }
+    },
+    "UP3 Semarang": {
+        "Ybus": np.array([[complex(12, -8), complex(-6, 4)],
+                         [complex(-6, 4), complex(10, -6)]]),
+        "P_load": [0, 180],  # kW
+        "Q_load": [0, 90],   # kVAR
+        "V_initial": [complex(1.02, 0), complex(0.98, 0.04)],
+        "losses": {
+            "initial": 1088249105,  # kWh
+            "current": 66970914     # kWh
+        }
+    }
+}
 
-# Input matriks Ybus
-st.sidebar.subheader("Matriks Admitansi (Ybus)")
-Y11_real = st.sidebar.number_input("Y11 (Real)", value=10.0)
-Y11_imag = st.sidebar.number_input("Y11 (Imaginer)", value=-5.0)
-Y12_real = st.sidebar.number_input("Y12 (Real)", value=-5.0)
-Y12_imag = st.sidebar.number_input("Y12 (Imaginer)", value=2.0)
-Y22_real = st.sidebar.number_input("Y22 (Real)", value=8.0)
-Y22_imag = st.sidebar.number_input("Y22 (Imaginer)", value=-3.0)
+# --- Sidebar untuk Memilih Daerah ---
+st.sidebar.title("Pilih Daerah")
+selected_daerah = st.sidebar.selectbox(
+    "Pilih daerah yang ingin dianalisis:",
+    list(data_daerah.keys()),
+    index=0
+)
 
-Ybus = np.array([[complex(Y11_real, Y11_imag), complex(Y12_real, Y12_imag)],
-                 [complex(Y12_real, Y12_imag), complex(Y22_real, Y22_imag)]])
-
-# Input beban
-st.sidebar.subheader("Beban pada Node 2")
-P_load = st.sidebar.number_input("Daya Nyata (P) - kW", value=200.0)
-Q_load = st.sidebar.number_input("Daya Reaktif (Q) - kVAR", value=100.0)
-
-# Input tegangan awal
-st.sidebar.subheader("Tegangan Awal")
-V1_real = st.sidebar.number_input("V1 (Real)", value=1.02)
-V1_imag = st.sidebar.number_input("V1 (Imaginer)", value=0.0)
-V2_real = st.sidebar.number_input("V2 (Real)", value=0.97)
-V2_imag = st.sidebar.number_input("V2 (Imaginer)", value=0.03)
-
-V = np.array([complex(V1_real, V1_imag), complex(V2_real, V2_imag)])
+# Ambil data untuk daerah terpilih
+daerah = data_daerah[selected_daerah]
+Ybus = daerah["Ybus"]
+P_load = np.array(daerah["P_load"])
+Q_load = np.array(daerah["Q_load"])
+V = np.array(daerah["V_initial"])
+initial_losses = daerah["losses"]["initial"]
+total_losses = daerah["losses"]["current"]
 
 # --- Metode Gauss-Seidel ---
 def gauss_seidel(Ybus, P_load, Q_load, V, tol=1e-6, max_iter=1000):
@@ -61,20 +93,14 @@ def gauss_seidel(Ybus, P_load, Q_load, V, tol=1e-6, max_iter=1000):
     return V
 
 # Jalankan metode Gauss-Seidel
-P_load_array = np.array([0, P_load])
-Q_load_array = np.array([0, Q_load])
-V_final = gauss_seidel(Ybus, P_load_array, Q_load_array, V)
+V_final = gauss_seidel(Ybus, P_load, Q_load, V)
 
 # --- Analisis Losses ---
-st.header("📉 Analisis Losses")
-
-# Data losses
-initial_losses = 229576732  # kWh (rugi-rugi awal)
-total_losses = 21343577     # kWh (rugi-rugi sebelum optimasi)
-increased_losses = total_losses / 1.445  # Rugi-rugi setelah optimasi
+st.header(f"📉 Analisis Losses untuk {selected_daerah}")
 
 # Menghitung persentase losses
 persentase_losses = (total_losses / initial_losses) * 100
+increased_losses = total_losses / 1.445  # Rugi-rugi setelah optimasi
 
 # Tampilkan hasil losses
 st.subheader("Perbandingan Losses")
@@ -95,7 +121,7 @@ for i, val in enumerate([initial_losses, total_losses, increased_losses]):
 st.pyplot(fig1)
 
 # --- Hasil Perhitungan Tegangan ---
-st.header("📊 Hasil Perhitungan Tegangan")
+st.header(f"📊 Hasil Perhitungan Tegangan untuk {selected_daerah}")
 
 # Tabel tegangan akhir
 st.subheader("Tegangan Akhir pada Setiap Node")
@@ -116,7 +142,7 @@ for i, voltage in enumerate(np.abs(V_final)):
 st.pyplot(fig2)
 
 # --- Simulasi Pengurangan Losses Bulanan ---
-st.header("📅 Simulasi Pengurangan Losses Bulanan")
+st.header(f"📅 Simulasi Pengurangan Losses Bulanan untuk {selected_daerah}")
 
 # Data simulasi
 months = ['May 24', 'June 24', 'July 24', 'August 24', 'September 24',
